@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import de.maxhenkel.voicechat.api.audiochannel.AudioPlayer;
 import de.maxhenkel.voicechat.api.audiochannel.EntityAudioChannel;
+import de.maxhenkel.voicechat.api.mp3.Mp3Decoder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerLevel;
@@ -14,8 +15,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.DataInputStream;
-import java.io.File;
 import java.io.FileInputStream;
 import java.nio.file.Path;
 import java.util.UUID;
@@ -57,20 +56,17 @@ public class NearestEntityPlayVoiceCommand {
                     ExampleMod.LOGGER.info("Audios Path: " + audiosPath);
 
                     try {
-                        Path audioPath = audiosPath.resolve("audio.raw");
+                        Path audioPath = audiosPath.resolve("audio.mp3");
                         ExampleMod.LOGGER.info("Audio Path: " + audioPath);
 
-                        File file = audioPath.toFile();
-
-                        int numberOfShorts = (int)(file.length() / 2); // each short = 2 bytes
-                        short[] decoded = new short[numberOfShorts];
+                        FileInputStream fis = new FileInputStream(audioPath.toString());
+                        Mp3Decoder decoder = api.createMp3Decoder(fis);
+                        assert decoder != null;
+                        short[] decoded = decoder.decode();
+                        fis.close();
+                        ExampleMod.LOGGER.info("AudioFormat: " + decoder.getAudioFormat().toString());
+                        ExampleMod.LOGGER.info("Bitrate: " + decoder.getBitrate());
                         ExampleMod.LOGGER.info("Short Array Size: " + decoded.length);
-
-                        DataInputStream dis = new DataInputStream(new FileInputStream(file));
-                        for (int i = 0; i < numberOfShorts; i++) {
-                            decoded[i] = dis.readShort();
-                        }
-                        dis.close();
                         ExampleMod.LOGGER.info("Read from the file!");
 
                         AudioPlayer playerAudioPlayer = api.createAudioPlayer(channel, api.createEncoder(), decoded);
