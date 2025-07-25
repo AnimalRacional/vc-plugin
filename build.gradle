@@ -75,6 +75,8 @@ dependencies {
 
     implementation 'de.maxhenkel.opus4j:opus4j:2.0.4'
 
+    implementation 'com.orctom:vad4j:1.0'
+
     runtimeOnly fg.deobf("maven.modrinth:simple-voice-chat:forge-${voicechat_dependency}")
 }
 

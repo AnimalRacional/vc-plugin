@@ -38,5 +38,6 @@ public class ExampleMod {
         NearestEntityPlayVoiceCommand.register(event.getDispatcher());
         StartRecordingCommand.register(event.getDispatcher());
         StopRecordingCommand.register(event.getDispatcher());
+        isRecordingCommand.register(event.getDispatcher());
     }
 }

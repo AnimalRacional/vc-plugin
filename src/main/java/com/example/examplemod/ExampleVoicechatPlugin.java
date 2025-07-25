@@ -4,11 +4,10 @@ import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.EventRegistration;
 import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
 import de.maxhenkel.voicechat.api.events.VoicechatServerStartedEvent;
-import de.maxhenkel.voicechat.api.mp3.Mp3Encoder;
 import de.maxhenkel.voicechat.api.opus.OpusDecoder;
 import net.minecraft.server.level.ServerLevel;
 
-import javax.sound.sampled.AudioFormat;
+import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -16,15 +15,14 @@ import java.nio.file.Path;
 
 @ForgeVoicechatPlugin
 public class ExampleVoicechatPlugin implements VoicechatPlugin {
-
     public static String FAGGOT_CATEGORY = "faggots";
     public static final int RECORDING_SIZE = 1024*1024;
-    private static short[] currentRecording = new short[RECORDING_SIZE];
+    private static short[] currentRecording;
     private static int currentRecordingIndex;
     private static ServerLevel currentRecordingLevel;
     public static boolean isRecording = false;
-
     private static OpusDecoder decoder = null;
+    public static Path audiosPath = null;
 
 
     /**
@@ -94,7 +92,7 @@ public class ExampleVoicechatPlugin implements VoicechatPlugin {
                 .build();
 
         api.registerVolumeCategory(faggots);
-
+        currentRecording = new short[RECORDING_SIZE];
     }
 
     public static void stopRecording() {
@@ -107,23 +105,23 @@ public class ExampleVoicechatPlugin implements VoicechatPlugin {
                     decoder = null;
                 }
 
-                Path audiosPath = currentRecordingLevel.getLevel().getServer().getWorldPath(ExampleMod.AUDIOS);
-                Path audioPath = audiosPath.resolve("audio.mp3");
+                Path audioPath = audiosPath.resolve("audio.pcm");
 
                 Files.deleteIfExists(audioPath);
                 Files.createFile(audioPath);
 
-                short[] audioToEncode = new short[currentRecordingIndex];
-                System.arraycopy(currentRecording, 0, audioToEncode, 0, currentRecordingIndex);
+                /*
+                try (VAD vad = new VAD()) {
+                    boolean isSpeech = vad.isSpeech(pcm);
+                    ExampleMod.LOGGER.info("is speech: {}", isSpeech);
+                }
+                 */
 
-                FileOutputStream fos = new FileOutputStream(audioPath.toString());
-                Mp3Encoder encoder = ExampleMod.vcApi.createMp3Encoder(new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
-                        48000, 16, 1, 2, 48000, false),
-                        112, 1, fos);
-                assert encoder != null;
-                encoder.encode(audioToEncode);
-                encoder.close();
-                fos.close();
+                DataOutputStream dos = new DataOutputStream(new FileOutputStream(audioPath.toString()));
+                for (int i=0; i< currentRecordingIndex; i++) {
+                    dos.writeShort(currentRecording[i]);
+                }
+                dos.close();
 
                 ExampleMod.LOGGER.info("Wrote recording to file");
 
@@ -137,7 +135,9 @@ public class ExampleVoicechatPlugin implements VoicechatPlugin {
         currentRecordingIndex = 0;
         isRecording = true;
         currentRecordingLevel = level;
-        currentRecording = new short[RECORDING_SIZE];
+        if (audiosPath == null) {
+            audiosPath = currentRecordingLevel.getLevel().getServer().getWorldPath(ExampleMod.AUDIOS);
+        }
         decoder = ExampleMod.vcApi.createDecoder();
     }
 
