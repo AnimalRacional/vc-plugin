@@ -3,18 +3,16 @@ package com.example.examplemod;
 import de.maxhenkel.voicechat.api.*;
 import de.maxhenkel.voicechat.api.events.*;
 
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @ForgeVoicechatPlugin
 public class ExampleVoicechatPlugin implements VoicechatPlugin {
     public static String FAGGOT_CATEGORY = "faggots";
     private static HashMap<UUID, RecordedPlayer> recordedPlayers;
-    private static HashMap<Path, short[]> audioCache;
+    private static ConcurrentHashMap<Path, short[]> audioCache;
 
     /**
      * @return the unique ID for this voice chat plugin
@@ -77,47 +75,25 @@ public class ExampleVoicechatPlugin implements VoicechatPlugin {
 
         api.registerVolumeCategory(faggots);
         recordedPlayers = new HashMap<>();
-        audioCache = new HashMap<>();
+        audioCache = new ConcurrentHashMap<>();
     }
 
     public static void stopRecording(UUID uuid) {
         recordedPlayers.get(uuid).stopRecording();
+        ExampleMod.LOGGER.info("Stopped recording for player: " + uuid.toString());
     }
 
     public static void startRecording(UUID uuid) {
         recordedPlayers.get(uuid).startRecording();
+        ExampleMod.LOGGER.info("Recording started for player: " + uuid.toString());
     }
 
     public static RecordedPlayer getRecordedPlayer(UUID uuid) {
         return recordedPlayers.get(uuid);
     }
 
-    public static short[] getAudio(Path path) {
-        if (audioCache.containsKey(path)) {
-            return audioCache.get(path);
-        } else {
-            try {
-                File file = path.toFile();
-
-                int numberOfShorts = (int)(file.length() / 2); // each short = 2 bytes
-                short[] audio = new short[numberOfShorts];
-                ExampleMod.LOGGER.info("Short Array Size: " + audio.length);
-
-                DataInputStream dis = new DataInputStream(new FileInputStream(file));
-                for (int i = 0; i < numberOfShorts; i++) {
-                    audio[i] = dis.readShort();
-                }
-                dis.close();
-                ExampleMod.LOGGER.info("Read from the file!");
-
-                audioCache.put(path, audio);
-                return audio;
-
-            } catch (Exception e) {
-                ExampleMod.LOGGER.error(e.getMessage());
-                throw new RuntimeException(e);
-            }
-        }
+    public static ConcurrentHashMap<Path, short[]> getAudioCache() {
+        return audioCache;
     }
 
     public static void removeFromCache(Path path){

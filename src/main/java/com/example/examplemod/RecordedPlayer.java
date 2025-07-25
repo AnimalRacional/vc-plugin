@@ -12,7 +12,7 @@ public class RecordedPlayer {
     public static final int RECORDING_SIZE = 1024*1024;
     private OpusDecoder decoder = null;
     private final short[] recording;
-    private static int currentRecordingIndex;
+    private int currentRecordingIndex;
     private boolean isRecording = false;
     private final UUID uuid;
     public static Path audiosPath;
@@ -70,7 +70,6 @@ public class RecordedPlayer {
                 if (decodedPacket.length + currentRecordingIndex < RECORDING_SIZE){
                     System.arraycopy(decodedPacket, 0, recording, currentRecordingIndex, decodedPacket.length);
                     currentRecordingIndex += decodedPacket.length;
-                    ExampleMod.LOGGER.info("Sucessfully added samples to currentRecording!");
                 } else {
                     ExampleMod.LOGGER.warn("Recording buffer full!");
                     stopRecording();

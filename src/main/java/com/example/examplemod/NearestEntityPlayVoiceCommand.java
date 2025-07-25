@@ -3,7 +3,6 @@ package com.example.examplemod;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
-import de.maxhenkel.voicechat.api.audiochannel.AudioPlayer;
 import de.maxhenkel.voicechat.api.audiochannel.EntityAudioChannel;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -56,8 +55,8 @@ public class NearestEntityPlayVoiceCommand {
                     for (GameProfile target : targets) {
                         UUID channelID = UUID.randomUUID();
                         EntityAudioChannel channel = createChannel(api, channelID, category, nearestEntity);
-                        short[] recording = getAudio(target.getId());
-                        playAudio(recording, api, channel);
+                        ExampleMod.LOGGER.info("Created new channel: " + channel);
+                        new AudioPlayer(getAudioPath(target.getId()), api, channel).start();
                     }
 
                 } else{
@@ -70,18 +69,10 @@ public class NearestEntityPlayVoiceCommand {
         })));
     }
 
-    private static short[] getAudio(UUID uuid) {
+    private static Path getAudioPath(UUID uuid){
         Path audioPath = RecordedPlayer.audiosPath.resolve(uuid.toString() + ".pcm");
         ExampleMod.LOGGER.info("Audio Path: " + audioPath);
-        return ExampleVoicechatPlugin.getAudio(audioPath);
-    }
-
-    private static void playAudio(short[] recording, VoicechatServerApi api, EntityAudioChannel channel) {
-        AudioPlayer playerAudioPlayer = api.createAudioPlayer(channel, api.createEncoder(), recording);
-        ExampleMod.LOGGER.info("AudioPlayer Created");
-
-        playerAudioPlayer.startPlaying();
-        ExampleMod.LOGGER.info("Playing Audio...");
+        return audioPath;
     }
 
     private static EntityAudioChannel createChannel(VoicechatServerApi api, UUID channelID, String category, Entity nearestEntity) {
