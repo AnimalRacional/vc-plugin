@@ -31,6 +31,7 @@ public class ExampleMod {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("Server starting");
+        RecordedPlayer.audiosPath = event.getServer().getWorldPath(AUDIOS);
     }
 
     @SubscribeEvent

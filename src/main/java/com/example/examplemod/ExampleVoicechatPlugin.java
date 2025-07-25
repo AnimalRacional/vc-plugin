@@ -1,29 +1,20 @@
 package com.example.examplemod;
 
 import de.maxhenkel.voicechat.api.*;
-import de.maxhenkel.voicechat.api.events.EventRegistration;
-import de.maxhenkel.voicechat.api.events.MicrophonePacketEvent;
-import de.maxhenkel.voicechat.api.events.VoicechatServerStartedEvent;
-import de.maxhenkel.voicechat.api.opus.OpusDecoder;
-import net.minecraft.server.level.ServerLevel;
+import de.maxhenkel.voicechat.api.events.*;
 
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.UUID;
 
 @ForgeVoicechatPlugin
 public class ExampleVoicechatPlugin implements VoicechatPlugin {
     public static String FAGGOT_CATEGORY = "faggots";
-    public static final int RECORDING_SIZE = 1024*1024;
-    private static short[] currentRecording;
-    private static int currentRecordingIndex;
-    private static ServerLevel currentRecordingLevel;
-    public static boolean isRecording = false;
-    private static OpusDecoder decoder = null;
-    public static Path audiosPath = null;
-
+    private static HashMap<UUID, RecordedPlayer> recordedPlayers;
+    private static HashMap<Path, short[]> audioCache;
 
     /**
      * @return the unique ID for this voice chat plugin
@@ -51,34 +42,27 @@ public class ExampleVoicechatPlugin implements VoicechatPlugin {
      */
     @Override
     public void registerEvents(EventRegistration registration) {
-        // TODO register your events
         registration.registerEvent(MicrophonePacketEvent.class, this::onMicrophonePacket, 100);
         registration.registerEvent(VoicechatServerStartedEvent.class, this::onServerStarted, 100);
+        registration.registerEvent(PlayerConnectedEvent.class, this::onPlayerConnected, 100);
+        registration.registerEvent(PlayerDisconnectedEvent.class, this::onPlayerDisconnected, 100);
     }
 
     private void onMicrophonePacket(MicrophonePacketEvent e){
-        if (isRecording){
-
-            if (decoder == null) {
-                ExampleMod.LOGGER.warn("Decoder is not initialized!");
-                return;
-            }
-            try {
-                short[] packet = decoder.decode(e.getPacket().getOpusEncodedData());
-                ExampleMod.LOGGER.info("Decoded {} samples", packet.length);
-
-                if (packet.length + currentRecordingIndex < RECORDING_SIZE){
-                    System.arraycopy(packet, 0, currentRecording, currentRecordingIndex, packet.length);
-                    currentRecordingIndex += packet.length;
-                    ExampleMod.LOGGER.info("Sucessfully added samples to currentRecording!");
-                } else {
-                    ExampleMod.LOGGER.warn("Recording buffer full!");
-                    stopRecording();
-                }
-            } catch (Exception ex) {
-                ExampleMod.LOGGER.error("Error decoding packet: {}", ex.getMessage());
-            }
+        if (e.getSenderConnection() != null){
+            RecordedPlayer recordedPlayer = recordedPlayers.get(e.getSenderConnection().getPlayer().getUuid());
+            recordedPlayer.recordPacket(e.getPacket().getOpusEncodedData());
         }
+    }
+
+    private void onPlayerConnected(PlayerConnectedEvent e){
+        UUID playerUuid = e.getConnection().getPlayer().getUuid();
+        recordedPlayers.put(playerUuid, new RecordedPlayer(playerUuid));
+    }
+
+    private void onPlayerDisconnected(PlayerDisconnectedEvent e){
+        stopRecording(e.getPlayerUuid());
+        recordedPlayers.remove(e.getPlayerUuid());
     }
 
     private void onServerStarted(VoicechatServerStartedEvent event) {
@@ -92,53 +76,52 @@ public class ExampleVoicechatPlugin implements VoicechatPlugin {
                 .build();
 
         api.registerVolumeCategory(faggots);
-        currentRecording = new short[RECORDING_SIZE];
+        recordedPlayers = new HashMap<>();
+        audioCache = new HashMap<>();
     }
 
-    public static void stopRecording() {
-        try{
-            if (isRecording){
-                isRecording = false;
+    public static void stopRecording(UUID uuid) {
+        recordedPlayers.get(uuid).stopRecording();
+    }
 
-                if (decoder != null) {
-                    decoder.close();
-                    decoder = null;
+    public static void startRecording(UUID uuid) {
+        recordedPlayers.get(uuid).startRecording();
+    }
+
+    public static RecordedPlayer getRecordedPlayer(UUID uuid) {
+        return recordedPlayers.get(uuid);
+    }
+
+    public static short[] getAudio(Path path) {
+        if (audioCache.containsKey(path)) {
+            return audioCache.get(path);
+        } else {
+            try {
+                File file = path.toFile();
+
+                int numberOfShorts = (int)(file.length() / 2); // each short = 2 bytes
+                short[] audio = new short[numberOfShorts];
+                ExampleMod.LOGGER.info("Short Array Size: " + audio.length);
+
+                DataInputStream dis = new DataInputStream(new FileInputStream(file));
+                for (int i = 0; i < numberOfShorts; i++) {
+                    audio[i] = dis.readShort();
                 }
+                dis.close();
+                ExampleMod.LOGGER.info("Read from the file!");
 
-                Path audioPath = audiosPath.resolve("audio.pcm");
+                audioCache.put(path, audio);
+                return audio;
 
-                Files.deleteIfExists(audioPath);
-                Files.createFile(audioPath);
-
-                /*
-                try (VAD vad = new VAD()) {
-                    boolean isSpeech = vad.isSpeech(pcm);
-                    ExampleMod.LOGGER.info("is speech: {}", isSpeech);
-                }
-                 */
-
-                DataOutputStream dos = new DataOutputStream(new FileOutputStream(audioPath.toString()));
-                for (int i=0; i< currentRecordingIndex; i++) {
-                    dos.writeShort(currentRecording[i]);
-                }
-                dos.close();
-
-                ExampleMod.LOGGER.info("Wrote recording to file");
-
+            } catch (Exception e) {
+                ExampleMod.LOGGER.error(e.getMessage());
+                throw new RuntimeException(e);
             }
-        }catch (IOException e){
-            ExampleMod.LOGGER.error(e.getMessage());
         }
     }
 
-    public static void startRecording(ServerLevel level) {
-        currentRecordingIndex = 0;
-        isRecording = true;
-        currentRecordingLevel = level;
-        if (audiosPath == null) {
-            audiosPath = currentRecordingLevel.getLevel().getServer().getWorldPath(ExampleMod.AUDIOS);
-        }
-        decoder = ExampleMod.vcApi.createDecoder();
+    public static void removeFromCache(Path path){
+        audioCache.remove(path);
     }
 
 }
