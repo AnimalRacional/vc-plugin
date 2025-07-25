@@ -11,6 +11,9 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.nio.file.Files;
+
 @Mod(ExampleMod.MOD_ID)
 public class ExampleMod {
 
@@ -31,6 +34,11 @@ public class ExampleMod {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("Server starting");
+        try {
+            Files.createDirectory(event.getServer().getWorldPath(AUDIOS));
+        } catch (IOException e) {
+            LOGGER.error("Error creating audios directory: " + e.getMessage());
+        }
         RecordedPlayer.audiosPath = event.getServer().getWorldPath(AUDIOS);
     }
 

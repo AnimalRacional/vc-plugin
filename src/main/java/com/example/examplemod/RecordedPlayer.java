@@ -1,10 +1,7 @@
 package com.example.examplemod;
+
 import de.maxhenkel.voicechat.api.opus.OpusDecoder;
 
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
@@ -23,39 +20,19 @@ public class RecordedPlayer {
     }
 
     public void stopRecording() {
-        try{
-            if (isRecording){
-                isRecording = false;
+        if (isRecording){
+            isRecording = false;
 
-                if (this.decoder != null) {
-                    this.decoder.close();
-                }
-
-                Path audioPath = audiosPath.resolve(getUuid().toString() + ".pcm");
-
-                Files.deleteIfExists(audioPath);
-                Files.createFile(audioPath);
-
-                /*
-                try (VAD vad = new VAD()) {
-                    boolean isSpeech = vad.isSpeech(pcm);
-                    ExampleMod.LOGGER.info("is speech: {}", isSpeech);
-                }
-                 */
-
-                DataOutputStream dos = new DataOutputStream(new FileOutputStream(audioPath.toString()));
-                for (int i=0; i< currentRecordingIndex; i++) {
-                    dos.writeShort(recording[i]);
-                }
-                dos.close();
-
-                ExampleMod.LOGGER.info("Wrote recording to file");
-
-                ExampleVoicechatPlugin.removeFromCache(audioPath);
-
+            if (this.decoder != null) {
+                this.decoder.close();
             }
-        }catch (IOException e){
-            ExampleMod.LOGGER.error(e.getMessage());
+
+            Path audioPath = audiosPath.resolve(getUuid().toString() + ".pcm");
+
+            new AudioSaver(audioPath, currentRecordingIndex, recording).start();
+
+            ExampleVoicechatPlugin.removeFromCache(audioPath);
+
         }
     }
 
