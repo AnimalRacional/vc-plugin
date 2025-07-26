@@ -34,12 +34,14 @@ public class ExampleMod {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("Server starting");
-        try {
-            Files.createDirectory(event.getServer().getWorldPath(AUDIOS));
-        } catch (IOException e) {
-            LOGGER.error("Error creating audios directory: " + e.getMessage());
-        }
         RecordedPlayer.audiosPath = event.getServer().getWorldPath(AUDIOS);
+        if(!Files.exists(RecordedPlayer.audiosPath)){
+            try {
+                Files.createDirectory(RecordedPlayer.audiosPath);
+            } catch (IOException e) {
+                LOGGER.error("Error creating audios directory: " + e.getMessage());
+            }
+        }
     }
 
     @SubscribeEvent

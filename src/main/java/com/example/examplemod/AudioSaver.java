@@ -28,7 +28,7 @@ public class AudioSaver extends Thread{
             }
             dos.close();
 
-            ExampleMod.LOGGER.info("Wrote recording to file");
+            ExampleMod.LOGGER.info("Wrote recording to file {}", path);
         } catch (IOException e){
             ExampleMod.LOGGER.error(e.getMessage());
         }
